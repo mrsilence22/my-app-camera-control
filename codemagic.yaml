@@ -1,0 +1,75 @@
+workflows:
+  ios-unsigned-build:
+    name: iOS Unsigned Build (App Playground)
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    environment:
+      xcode: latest
+      vars:
+        # This is a Swift Playgrounds "App Playground" (Package.swift with an
+        # .iOSApplication product), not a traditional .xcodeproj. The package
+        # lives one level down from the repo root.
+        APP_PLAYGROUND_DIR: "My App.swiftpm"
+        # Must match the `name:` of the .iOSApplication product in Package.swift.
+        # If the archive step below fails with "scheme not found", check the
+        # "List available schemes" step's log output and fix this value.
+        XCODE_SCHEME: "My App"
+    scripts:
+      - name: Generate Secrets.swift from encrypted environment variable
+        script: |
+          set -e
+          cat > "$APP_PLAYGROUND_DIR/Secrets.swift" <<EOF
+          enum Secrets {
+              static let claudeAPIKey = "$CLAUDE_API_KEY"
+          }
+          EOF
+
+      - name: List available schemes (diagnostic)
+        script: |
+          cd "$APP_PLAYGROUND_DIR"
+          xcodebuild -list || true
+
+      - name: Archive (unsigned, generic iOS device)
+        script: |
+          set -e
+          cd "$APP_PLAYGROUND_DIR"
+          xcodebuild archive \
+            -scheme "$XCODE_SCHEME" \
+            -destination "generic/platform=iOS" \
+            -archivePath "$CM_BUILD_DIR/build/MyApp.xcarchive" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            AD_HOC_CODE_SIGNING_ALLOWED=YES
+
+      - name: Package unsigned .ipa
+        script: |
+          set -e
+          ARCHIVE_PATH="$CM_BUILD_DIR/build/MyApp.xcarchive"
+          APP_PATH=$(find "$ARCHIVE_PATH/Products/Applications" -maxdepth 1 -name "*.app" | head -n 1)
+          if [ -z "$APP_PATH" ]; then
+            echo "ERROR: no .app bundle found in $ARCHIVE_PATH/Products/Applications"
+            exit 1
+          fi
+          echo "Found app bundle: $APP_PATH"
+
+          PAYLOAD_DIR="$CM_BUILD_DIR/build/Payload"
+          rm -rf "$PAYLOAD_DIR"
+          mkdir -p "$PAYLOAD_DIR"
+          cp -R "$APP_PATH" "$PAYLOAD_DIR/"
+
+          cd "$CM_BUILD_DIR/build"
+          zip -r "MyApp-unsigned.ipa" "Payload"
+          echo "Created $CM_BUILD_DIR/build/MyApp-unsigned.ipa"
+
+    artifacts:
+      - build/MyApp-unsigned.ipa
+      - build/MyApp.xcarchive
+
+    publishing:
+      email:
+        recipients:
+          - mrsilence22@gmail.com
+        notify:
+          success: true
+          failure: true
