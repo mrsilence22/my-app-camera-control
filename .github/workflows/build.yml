@@ -1,0 +1,79 @@
+name: iOS Unsigned Build
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ master ]
+
+jobs:
+  build:
+    # macOS runners consume Actions minutes at a 10x multiplier on private repos.
+    runs-on: macos-15
+    env:
+      # This is a Swift Playgrounds "App Playground" (Package.swift with an
+      # .iOSApplication product), not a traditional .xcodeproj. The package
+      # lives one level down from the repo root.
+      APP_PLAYGROUND_DIR: "My App.swiftpm"
+      # Must match the `name:` of the .iOSApplication product in Package.swift.
+      # If the archive step fails with "scheme not found", check the
+      # "List available schemes" step's log and fix this value.
+      XCODE_SCHEME: "My App"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Generate Secrets.swift from repository secret
+        env:
+          CLAUDE_API_KEY: ${{ secrets.CLAUDE_API_KEY }}
+        run: |
+          set -e
+          cat > "$APP_PLAYGROUND_DIR/Secrets.swift" <<EOF
+          enum Secrets {
+              static let claudeAPIKey = "$CLAUDE_API_KEY"
+          }
+          EOF
+
+      - name: List available schemes (diagnostic)
+        run: |
+          cd "$APP_PLAYGROUND_DIR"
+          xcodebuild -list || true
+
+      - name: Archive (unsigned, generic iOS device)
+        run: |
+          set -e
+          cd "$APP_PLAYGROUND_DIR"
+          xcodebuild archive \
+            -scheme "$XCODE_SCHEME" \
+            -destination "generic/platform=iOS" \
+            -archivePath "$GITHUB_WORKSPACE/build/MyApp.xcarchive" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            AD_HOC_CODE_SIGNING_ALLOWED=YES
+
+      - name: Package unsigned .ipa
+        run: |
+          set -e
+          ARCHIVE_PATH="$GITHUB_WORKSPACE/build/MyApp.xcarchive"
+          APP_PATH=$(find "$ARCHIVE_PATH/Products/Applications" -maxdepth 1 -name "*.app" | head -n 1)
+          if [ -z "$APP_PATH" ]; then
+            echo "ERROR: no .app bundle found in $ARCHIVE_PATH/Products/Applications"
+            exit 1
+          fi
+          echo "Found app bundle: $APP_PATH"
+
+          PAYLOAD_DIR="$GITHUB_WORKSPACE/build/Payload"
+          rm -rf "$PAYLOAD_DIR"
+          mkdir -p "$PAYLOAD_DIR"
+          cp -R "$APP_PATH" "$PAYLOAD_DIR/"
+
+          cd "$GITHUB_WORKSPACE/build"
+          zip -r "MyApp-unsigned.ipa" "Payload"
+          echo "Created $GITHUB_WORKSPACE/build/MyApp-unsigned.ipa"
+
+      - name: Upload .ipa artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: MyApp-unsigned-ipa
+          path: build/MyApp-unsigned.ipa
