@@ -48,6 +48,10 @@ struct ContentView: View {
         .preferredColorScheme(.dark)
     }
     
+    private var hasLogFile: Bool {
+        FileManager.default.fileExists(atPath: AppLogger.logFileURL.path)
+    }
+    
     private var header: some View {
         HStack {
             Image(systemName: "camera.aperture")
@@ -57,6 +61,13 @@ struct ContentView: View {
                 .font(.system(size: 28, weight: .heavy, design: .rounded))
                 .foregroundColor(.white)
             Spacer()
+            if hasLogFile {
+                ShareLink(item: AppLogger.logFileURL) {
+                    Image(systemName: "square.and.arrow.up.circle")
+                        .font(.system(size: 22))
+                        .foregroundColor(.white.opacity(0.6))
+                }
+            }
         }
         .padding(.top, 8)
     }
