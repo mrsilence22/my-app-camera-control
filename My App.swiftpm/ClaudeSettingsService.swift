@@ -22,16 +22,28 @@ class ClaudeSettingsService {
         description of the scene and intent, recommend the best exposure mode AND settings.
         
         Modes and what's settable in each:
-        - manual: iso, aperture, shutter_speed, white_balance (NOT exposure_compensation)
-        - aperture_priority: iso, aperture, white_balance, exposure_compensation (NOT shutter_speed)
-        - shutter_priority: iso, shutter_speed, white_balance, exposure_compensation (NOT aperture)
-        - program: iso, white_balance, exposure_compensation (NOT aperture, NOT shutter_speed)
+        - manual: iso, aperture, shutter_speed, white_balance
+        - aperture_priority: iso, aperture, white_balance (NOT shutter_speed)
+        - shutter_priority: iso, shutter_speed, white_balance (NOT aperture)
+        - program: iso, white_balance (NOT aperture, NOT shutter_speed)
         
         Rules:
         - Freeze fast motion (sports, wildlife) → shutter_priority
         - Control depth of field (portrait, bokeh, landscape) → aperture_priority
         - Full manual control needed → manual
         - Only include keys valid for the chosen mode. Omit others (use null).
+        
+        focus_mode and drive_mode are independent of exposure mode — always include both:
+        - focus_mode options: "af" (Automatic AF — subject may start still or move), \
+        "af_s" (Single-shot AF — static subjects: landscape, posed portrait, product), \
+        "af_c" (Continuous AF — moving subjects: sports, wildlife, kids/pets in motion), \
+        "dmf" (Direct Manual Focus — macro/close-up needing fine manual tweaks after autofocus), \
+        "mf" (Manual Focus — low light/low contrast where autofocus struggles, or fully deliberate framing)
+        - drive_mode options: "photo" (single frame — default for most scenes), \
+        "continuous" (burst — fast action where timing/peak moment matters), \
+        "bracket_single" (one bracketed set — high-contrast/HDR scenes, e.g. sunset with dark foreground), \
+        "bracket_continuous" (repeated bracketed sets — changing high-contrast light, e.g. fireworks, fast-changing sky)
+        
         - Even if the scene description is very brief, vague, or a single word (e.g. "forest"), \
         you MUST still pick reasonable default settings for a typical version of that scene. \
         NEVER ask a clarifying question. NEVER add any text outside the JSON object.
@@ -47,7 +59,8 @@ class ClaudeSettingsService {
           "aperture": <float or null>,
           "shutter_speed": "<string like 1/250, or null>",
           "white_balance": "<one of: auto, daylight, cloudy, shade, incandescent, or null>",
-          "exposure_compensation": <float or null>,
+          "focus_mode": "<one of: af, af_s, af_c, dmf, mf>",
+          "drive_mode": "<one of: photo, continuous, bracket_single, bracket_continuous>",
           "reasoning": "<one sentence, max 20 words>",
           "tips": ["<tip 1>", "<tip 2>"]
         }

@@ -8,7 +8,8 @@ struct CameraSettings: Codable {
     let aperture: Double?
     let shutterSpeed: String?
     let whiteBalance: String?
-    let exposureCompensation: Double?
+    let focusMode: String?
+    let driveMode: String?
     let reasoning: String
     let tips: [String]
     
@@ -18,7 +19,8 @@ struct CameraSettings: Codable {
         case iso, aperture
         case shutterSpeed = "shutter_speed"
         case whiteBalance = "white_balance"
-        case exposureCompensation = "exposure_compensation"
+        case focusMode = "focus_mode"
+        case driveMode = "drive_mode"
         case reasoning, tips
     }
 }
