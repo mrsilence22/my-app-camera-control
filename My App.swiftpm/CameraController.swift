@@ -9,6 +9,7 @@ class CameraController: NSObject, ObservableObject, CameraDiscovererDelegate {
     @Published var settingResults: [SettingResult] = []
     @Published var needsManualModeSwitch: String? = nil   // holds mode name if manual switch needed
     @Published var isApplying = false
+    @Published var showAppliedConfirmation = false
     
     private var discoverer: CameraDiscoverer!
     private var pendingSettings: CameraSettings?
@@ -112,8 +113,24 @@ class CameraController: NSObject, ObservableObject, CameraDiscovererDelegate {
     
     private func applyRemainingSettings(_ settings: CameraSettings) {
         guard let camera = connectedCamera else { return }
+        showAppliedConfirmation = false
         var results: [SettingResult] = []
         let group = DispatchGroup()
+        var didFinish = false
+        
+        // Camera (PTP/IP) often drops the remote session right after accepting the
+        // last command, so that command's own completion callback never comes back
+        // and group.notify would spin forever — even though the setting DID land on
+        // the camera. finish() is called from whichever fires first: the real
+        // group.notify, or this 2s safety timeout.
+        func finish() {
+            guard !didFinish else { return }
+            didFinish = true
+            self.settingResults = results
+            self.isApplying = false
+            self.statusMessage = "Done applying settings."
+            self.showAppliedConfirmation = true
+        }
         
         // ISO
         if let iso = settings.iso {
@@ -142,11 +159,20 @@ class CameraController: NSObject, ObservableObject, CameraDiscovererDelegate {
             }
         }
         
-        // Exposure Compensation
-        if let ev = settings.exposureCompensation {
+        // Focus Mode
+        if let focusString = settings.focusMode, let focusValue = Self.parseFocusMode(focusString) {
             group.enter()
-            camera.performFunction(Exposure.Compensation.set, payload: Exposure.Compensation.Value(value: ev)) { (error, _) in
-                results.append(SettingResult(name: "EV \(ev)", applied: error == nil, reason: error?.localizedDescription))
+            camera.performFunction(Focus.Mode.set, payload: focusValue) { (error, _) in
+                results.append(SettingResult(name: "Focus Mode \(focusString.uppercased())", applied: error == nil, reason: error?.localizedDescription))
+                group.leave()
+            }
+        }
+        
+        // Drive Mode
+        if let driveString = settings.driveMode, let driveValue = Self.parseDriveMode(driveString) {
+            group.enter()
+            camera.performFunction(ShootMode.set, payload: driveValue) { (error, _) in
+                results.append(SettingResult(name: "Drive Mode \(driveString)", applied: error == nil, reason: error?.localizedDescription))
                 group.leave()
             }
         }
@@ -168,9 +194,11 @@ class CameraController: NSObject, ObservableObject, CameraDiscovererDelegate {
         }
         
         group.notify(queue: .main) {
-            self.settingResults = results
-            self.isApplying = false
-            self.statusMessage = "Done applying settings."
+            finish()
+        }
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+            finish()
         }
     }
     
@@ -194,6 +222,29 @@ class CameraController: NSObject, ObservableObject, CameraDiscovererDelegate {
         case "cloudy": return .cloudy
         case "shade": return .shade
         case "incandescent", "tungsten": return .incandescent
+        default: return nil
+        }
+    }
+    
+    /// Maps our simple LLM-facing strings to Rocc's Focus.Mode.Value cases.
+    private static func parseFocusMode(_ text: String) -> Focus.Mode.Value? {
+        switch text.lowercased() {
+        case "af": return .auto              // Automatic AF (AF-A)
+        case "af_s", "afs": return .autoSingle       // Single-shot AF
+        case "af_c", "afc": return .autoContinuous   // Continuous AF
+        case "dmf": return .directManual             // Direct Manual Focus
+        case "mf": return .manual                    // Manual Focus
+        default: return nil
+        }
+    }
+    
+    /// Maps our simple LLM-facing strings to Rocc's ShootingMode cases (used by ShootMode.set).
+    private static func parseDriveMode(_ text: String) -> ShootingMode? {
+        switch text.lowercased() {
+        case "photo": return .photo
+        case "continuous": return .continuous
+        case "bracket_single", "bracketsingle": return .singleBracket
+        case "bracket_continuous", "bracketcontinuous": return .continuousBracket
         default: return nil
         }
     }

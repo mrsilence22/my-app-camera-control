@@ -34,12 +34,12 @@ struct ContentView: View {
                         ProgressView("Applying settings...").tint(.orange).foregroundColor(.white)
                     }
                     
-                    if let modeNeeded = controller.needsManualModeSwitch {
-                        modeWarningCard(modeNeeded)
+                    if controller.showAppliedConfirmation {
+                        appliedConfirmationBanner
                     }
                     
-                    if !controller.settingResults.isEmpty {
-                        resultsListCard
+                    if let modeNeeded = controller.needsManualModeSwitch {
+                        modeWarningCard(modeNeeded)
                     }
                     
                     if let errorMessage {
@@ -130,6 +130,27 @@ struct ContentView: View {
         }
     }
     
+    private func focusModeLabel(_ mode: String) -> String {
+        switch mode.lowercased() {
+        case "af": return "AF"
+        case "af_s", "afs": return "AF-S"
+        case "af_c", "afc": return "AF-C"
+        case "dmf": return "DMF"
+        case "mf": return "MF"
+        default: return mode.uppercased()
+        }
+    }
+    
+    private func driveModeLabel(_ mode: String) -> String {
+        switch mode.lowercased() {
+        case "photo": return "Photo"
+        case "continuous": return "Continuous"
+        case "bracket_single", "bracketsingle": return "Bracket (Single)"
+        case "bracket_continuous", "bracketcontinuous": return "Bracket (Cont.)"
+        default: return mode.capitalized
+        }
+    }
+    
     private func resultCard(_ result: CameraSettings) -> some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack {
@@ -151,7 +172,8 @@ struct ContentView: View {
                 if let ap = result.aperture { settingChip(icon: "camera.aperture", label: "Aperture", value: String(format: "f/%.1f", ap)) }
                 if let ss = result.shutterSpeed { settingChip(icon: "timer", label: "Shutter", value: ss) }
                 if let wb = result.whiteBalance { settingChip(icon: "thermometer.sun", label: "White Bal.", value: wb) }
-                if let ev = result.exposureCompensation { settingChip(icon: "plusminus", label: "Exp. Comp", value: String(format: "%.1f EV", ev)) }
+                if let focus = result.focusMode { settingChip(icon: "viewfinder", label: "Focus", value: focusModeLabel(focus)) }
+                if let drive = result.driveMode { settingChip(icon: "square.stack", label: "Drive", value: driveModeLabel(drive)) }
             }
             
             Divider().background(Color.white.opacity(0.15))
@@ -249,24 +271,20 @@ struct ContentView: View {
         .transition(.scale.combined(with: .opacity))
     }
     
-    private var resultsListCard: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("APPLY RESULTS").font(.caption).fontWeight(.heavy).foregroundColor(.white.opacity(0.5))
-            ForEach(controller.settingResults) { r in
-                HStack(alignment: .top, spacing: 10) {
-                    Image(systemName: r.applied ? "checkmark.circle.fill" : "xmark.circle.fill")
-                        .foregroundColor(r.applied ? .green : .red)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(r.name).foregroundColor(.white).font(.subheadline)
-                        if let reason = r.reason {
-                            Text(reason).font(.caption2).foregroundColor(.white.opacity(0.4))
-                        }
-                    }
-                    Spacer()
-                }
-            }
+    private var appliedConfirmationBanner: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "checkmark.circle.fill")
+                .foregroundColor(.green)
+            Text("Settings Applied")
+                .foregroundColor(.white)
+                .fontWeight(.semibold)
         }
-        .padding()
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20))
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 12)
+        .background(Color.green.opacity(0.15), in: RoundedRectangle(cornerRadius: 14))
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.green.opacity(0.4), lineWidth: 1))
+        .transition(.opacity.combined(with: .scale))
+        .animation(.easeInOut, value: controller.showAppliedConfirmation)
     }
+    
 }
