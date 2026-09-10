@@ -127,7 +127,11 @@ struct ContentView: View {
                 controller.settingResults = []
                 Task {
                     do {
-                        result = try await ClaudeSettingsService.getSettings(sceneDescription: sceneText)
+                        result = try await ClaudeSettingsService.getSettings(
+                            sceneDescription: sceneText,
+                            cameraName: controller.connectedCamera?.name,
+                            capabilities: controller.cameraCapabilities
+                        )
                     } catch {
                         errorMessage = "\(error)"
                     }

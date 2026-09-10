@@ -7,6 +7,7 @@ class CameraController: NSObject, ObservableObject, CameraDiscovererDelegate {
     @Published var statusMessage = "Searching for camera on WiFi..."
     @Published var connectedCamera: Camera?
     @Published var cameraInfo: String = ""
+    @Published var cameraCapabilities: CameraCapabilities?
     @Published var settingResults: [SettingResult] = []
     @Published var isApplying = false
     @Published var showAppliedConfirmation = false
@@ -38,7 +39,43 @@ class CameraController: NSObject, ObservableObject, CameraDiscovererDelegate {
         })
     }
 
-    
+    func fetchCapabilities() {
+        guard let camera = connectedCamera else { return }
+        AppLogger.log("fetchCapabilities() START")
+        var capabilities = CameraCapabilities()
+        let group = DispatchGroup()
+
+        group.enter()
+        camera.isFunctionAvailable(ISO.set) { (available, error, values) in
+            AppLogger.log("ISO capability CALLBACK — available: \(String(describing: available)), error: \(error?.localizedDescription ?? "nil"), count: \(values?.count ?? 0)")
+            capabilities.isoValues = (values ?? []).compactMap { value in
+                if case .native(let intVal) = value { return intVal }
+                return nil
+            }.sorted()
+            group.leave()
+        }
+
+        group.enter()
+        camera.isFunctionAvailable(Aperture.set) { (available, error, values) in
+            AppLogger.log("Aperture capability CALLBACK — available: \(String(describing: available)), error: \(error?.localizedDescription ?? "nil"), count: \(values?.count ?? 0)")
+            capabilities.apertureValues = (values ?? []).map { $0.value }.sorted()
+            group.leave()
+        }
+
+        group.enter()
+        camera.isFunctionAvailable(Shutter.Speed.set) { (available, error, values) in
+            AppLogger.log("Shutter capability CALLBACK — available: \(String(describing: available)), error: \(error?.localizedDescription ?? "nil"), count: \(values?.count ?? 0)")
+            let formatter = ShutterSpeedFormatter()
+            capabilities.shutterSpeedValues = (values ?? []).map { formatter.string(from: $0) }
+            group.leave()
+        }
+
+        group.notify(queue: .main) {
+            AppLogger.log("fetchCapabilities() DONE — ISO: \(capabilities.isoValues.count), Aperture: \(capabilities.apertureValues.count), Shutter: \(capabilities.shutterSpeedValues.count)")
+            self.cameraCapabilities = capabilities
+        }
+    }
+
     func cameraDiscoverer(_ discoverer: CameraDiscoverer, didError error: Error) {
         guard connectedCamera == nil else {
             AppLogger.log("Discovery ERROR (ignored — already connected): \(error.localizedDescription)")
@@ -66,6 +103,7 @@ class CameraController: NSObject, ObservableObject, CameraDiscovererDelegate {
                         self?.cameraInfo = cameraName
                     }
                     self?.discoverer.stop(with: {})
+                    self?.fetchCapabilities()
                 }
             }
         }

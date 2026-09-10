@@ -16,23 +16,23 @@ enum ClaudeServiceError: Error, CustomStringConvertible {
 class ClaudeSettingsService {
     static let apiKey = Secrets.claudeAPIKey
     
-    static func getSettings(sceneDescription: String) async throws -> CameraSettings {
-        let systemPrompt = """
+    static func getSettings(sceneDescription: String, cameraName: String?, capabilities: CameraCapabilities?) async throws -> CameraSettings {
+        let basePrompt = """
         You are a camera settings assistant for a Sony Alpha camera. Given a photographer's \
         description of the scene and intent, recommend the best exposure mode AND settings.
-        
+
         Modes and what's settable in each:
         - manual: iso, aperture, shutter_speed, white_balance
         - aperture_priority: iso, aperture, white_balance (NOT shutter_speed)
         - shutter_priority: iso, shutter_speed, white_balance (NOT aperture)
         - program: iso, white_balance (NOT aperture, NOT shutter_speed)
-        
+
         Rules:
         - Freeze fast motion (sports, wildlife) → shutter_priority
         - Control depth of field (portrait, bokeh, landscape) → aperture_priority
         - Full manual control needed → manual
         - Only include keys valid for the chosen mode. Omit others (use null).
-        
+
         focus_mode and drive_mode are independent of exposure mode — always include both:
         - focus_mode options: "af" (Automatic AF — subject may start still or move), \
         "af_s" (Single-shot AF — static subjects: landscape, posed portrait, product), \
@@ -43,14 +43,37 @@ class ClaudeSettingsService {
         "continuous" (burst — fast action where timing/peak moment matters), \
         "bracket_single" (one bracketed set — high-contrast/HDR scenes, e.g. sunset with dark foreground), \
         "bracket_continuous" (repeated bracketed sets — changing high-contrast light, e.g. fireworks, fast-changing sky)
-        
+
         - Even if the scene description is very brief, vague, or a single word (e.g. "forest"), \
         you MUST still pick reasonable default settings for a typical version of that scene. \
         NEVER ask a clarifying question. NEVER add any text outside the JSON object.
         - tips: 2-3 SPECIFIC, actionable tips for this exact scene — not generic advice. \
         Think like a real photographer: framing angle, timing, gear positioning, or a common mistake \
         to avoid for THIS scene. Avoid vague tips like "use good lighting" or "compose well".
-        
+        """
+
+        var cameraConstraints = ""
+        if let name = cameraName {
+            cameraConstraints += "\nCamera: \(name)\n"
+        }
+        if let caps = capabilities {
+            if !caps.isoValues.isEmpty {
+                cameraConstraints += "Supported ISO values (choose ONLY from this list): \(caps.isoValues.map(String.init).joined(separator: ", "))\n"
+            }
+            if !caps.apertureValues.isEmpty {
+                let apStrings = caps.apertureValues.map { String(format: "f/%.1f", $0) }
+                cameraConstraints += "Supported aperture values (choose ONLY from this list): \(apStrings.joined(separator: ", "))\n"
+            }
+            if !caps.shutterSpeedValues.isEmpty {
+                cameraConstraints += "Supported shutter speed values (choose ONLY from this list): \(caps.shutterSpeedValues.joined(separator: ", "))\n"
+            }
+            if !cameraConstraints.isEmpty {
+                cameraConstraints += "If your ideal value isn't in a supported list, pick the closest available value instead.\n"
+            }
+        }
+
+        let jsonSchema = """
+
         Respond ONLY with valid JSON, no other text, no markdown code fences:
         {
           "recommended_mode": "<manual|aperture_priority|shutter_priority|program>",
@@ -65,6 +88,8 @@ class ClaudeSettingsService {
           "tips": ["<tip 1>", "<tip 2>"]
         }
         """
+
+        let systemPrompt = basePrompt + "\n" + cameraConstraints + jsonSchema
         
         let requestBody: [String: Any] = [
             "model": "claude-sonnet-5",
