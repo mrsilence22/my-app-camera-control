@@ -6,6 +6,7 @@ import Rocc
 class CameraController: NSObject, ObservableObject, CameraDiscovererDelegate {
     @Published var statusMessage = "Searching for camera on WiFi..."
     @Published var connectedCamera: Camera?
+    @Published var cameraInfo: String = ""
     @Published var settingResults: [SettingResult] = []
     @Published var isApplying = false
     @Published var showAppliedConfirmation = false
@@ -31,6 +32,7 @@ class CameraController: NSObject, ObservableObject, CameraDiscovererDelegate {
         AppLogger.log("checkForCamera() called — restarting discovery")
         statusMessage = "Checking for camera..."
         connectedCamera = nil
+        cameraInfo = ""
         discoverer.stop(with: { [weak self] in
             self?.discoverer.start()
         })
@@ -57,6 +59,9 @@ class CameraController: NSObject, ObservableObject, CameraDiscovererDelegate {
                 } else {
                     self?.statusMessage = "Connected! Ready."
                     self?.connectedCamera = device
+                    let cameraName = device.name ?? device.model ?? "Camera"
+                    let lens = device.lensModelName ?? "Lens unknown"
+                    self?.cameraInfo = "\(cameraName) · \(lens)"
                     self?.discoverer.stop(with: {})
                 }
             }

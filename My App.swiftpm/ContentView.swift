@@ -88,14 +88,25 @@ struct ContentView: View {
     }
     
     private var statusBar: some View {
-        HStack(spacing: 8) {
-            Circle()
-                .fill(controller.connectedCamera != nil ? Color.green : Color.orange)
-                .frame(width: 8, height: 8)
-            Text(controller.statusMessage)
-                .font(.footnote)
-                .foregroundColor(.white.opacity(0.7))
-            Spacer()
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 8) {
+                Circle()
+                    .fill(controller.connectedCamera != nil ? Color.green : Color.orange)
+                    .frame(width: 8, height: 8)
+                Text(controller.statusMessage)
+                    .font(.footnote)
+                    .foregroundColor(.white.opacity(0.7))
+                Spacer()
+            }
+            if controller.connectedCamera != nil, !controller.cameraInfo.isEmpty {
+                HStack(spacing: 6) {
+                    Image(systemName: "camera.fill")
+                        .font(.caption2)
+                    Text(controller.cameraInfo)
+                        .font(.caption2)
+                }
+                .foregroundColor(.white.opacity(0.5))
+            }
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
