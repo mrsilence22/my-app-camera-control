@@ -38,6 +38,10 @@ class CameraController: NSObject, ObservableObject, CameraDiscovererDelegate {
 
     
     func cameraDiscoverer(_ discoverer: CameraDiscoverer, didError error: Error) {
+        guard connectedCamera == nil else {
+            AppLogger.log("Discovery ERROR (ignored — already connected): \(error.localizedDescription)")
+            return
+        }
         AppLogger.log("Discovery ERROR: \(error.localizedDescription)")
         DispatchQueue.main.async { self.statusMessage = "Discovery error: \(error.localizedDescription)" }
     }
@@ -53,6 +57,7 @@ class CameraController: NSObject, ObservableObject, CameraDiscovererDelegate {
                 } else {
                     self?.statusMessage = "Connected! Ready."
                     self?.connectedCamera = device
+                    self?.discoverer.stop(with: {})
                 }
             }
         }
