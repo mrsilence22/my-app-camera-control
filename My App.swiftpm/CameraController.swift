@@ -60,8 +60,11 @@ class CameraController: NSObject, ObservableObject, CameraDiscovererDelegate {
                     self?.statusMessage = "Connected! Ready."
                     self?.connectedCamera = device
                     let cameraName = device.name ?? device.model ?? "Camera"
-                    let lens = device.lensModelName ?? "Lens unknown"
-                    self?.cameraInfo = "\(cameraName) · \(lens)"
+                    if let lens = device.lensModelName, !lens.isEmpty {
+                        self?.cameraInfo = "\(cameraName) · \(lens)"
+                    } else {
+                        self?.cameraInfo = cameraName
+                    }
                     self?.discoverer.stop(with: {})
                 }
             }
