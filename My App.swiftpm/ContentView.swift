@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct ContentView: View {
     @StateObject private var controller = CameraController()
@@ -6,6 +7,7 @@ struct ContentView: View {
     @State private var result: CameraSettings?
     @State private var errorMessage: String?
     @State private var isLoading = false
+    @State private var showShareSheet = false
     
     var body: some View {
         ZStack {
@@ -62,14 +64,27 @@ struct ContentView: View {
                 .foregroundColor(.white)
             Spacer()
             if hasLogFile {
-                ShareLink(item: AppLogger.logFileURL) {
-                    Image(systemName: "square.and.arrow.up.circle")
-                        .font(.system(size: 22))
-                        .foregroundColor(.white.opacity(0.6))
+                if #available(iOS 16.0, *) {
+                    ShareLink(item: AppLogger.logFileURL) {
+                        Image(systemName: "square.and.arrow.up.circle")
+                            .font(.system(size: 22))
+                            .foregroundColor(.white.opacity(0.6))
+                    }
+                } else {
+                    Button {
+                        showShareSheet = true
+                    } label: {
+                        Image(systemName: "square.and.arrow.up.circle")
+                            .font(.system(size: 22))
+                            .foregroundColor(.white.opacity(0.6))
+                    }
                 }
             }
         }
         .padding(.top, 8)
+        .sheet(isPresented: $showShareSheet) {
+            ActivityShareSheet(url: AppLogger.logFileURL)
+        }
     }
     
     private var statusBar: some View {
@@ -267,5 +282,16 @@ struct ContentView: View {
         .transition(.opacity.combined(with: .scale))
         .animation(.easeInOut, value: controller.showAppliedConfirmation)
     }
-    
+
+}
+
+/// iOS 15 fallback for ShareLink (which requires iOS 16+), used to export the log file.
+struct ActivityShareSheet: UIViewControllerRepresentable {
+    let url: URL
+
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: [url], applicationActivities: nil)
+    }
+
+    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }
