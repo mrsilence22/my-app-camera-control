@@ -72,15 +72,20 @@ class ClaudeSettingsService {
             "system": systemPrompt,
             "messages": [["role": "user", "content": sceneDescription]]
         ]
-        
-        var request = URLRequest(url: URL(string: "https://api.anthropic.com/v1/messages")!)
-        request.httpMethod = "POST"
-        request.setValue(apiKey, forHTTPHeaderField: "x-api-key")
-        request.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
-        request.setValue("application/json", forHTTPHeaderField: "content-type")
-        request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
-        
-        let (data, _) = try await URLSession.shared.data(for: request)
+
+        let jsonBody = try JSONSerialization.data(withJSONObject: requestBody)
+
+        // Forced over cellular: the phone stays connected to the camera's Wi-Fi (which
+        // has no internet) while this request needs to actually reach the internet.
+        let data = try await CellularNetworkClient.post(
+            url: URL(string: "https://api.anthropic.com/v1/messages")!,
+            headers: [
+                "x-api-key": apiKey,
+                "anthropic-version": "2023-06-01",
+                "content-type": "application/json"
+            ],
+            jsonBody: jsonBody
+        )
         let fullRawResponse = String(data: data, encoding: .utf8) ?? "<non-utf8 data>"
         
         guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
