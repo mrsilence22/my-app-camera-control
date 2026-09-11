@@ -50,7 +50,8 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
-            AD_HOC_CODE_SIGNING_ALLOWED=YES
+            AD_HOC_CODE_SIGNING_ALLOWED=YES \
+            SWIFT_ACTIVE_COMPILATION_CONDITIONS="DEBUG"
 
       - name: Package unsigned .ipa
         run: |
