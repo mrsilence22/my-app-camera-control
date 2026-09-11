@@ -76,6 +76,39 @@ class CameraController: NSObject, ObservableObject, CameraDiscovererDelegate {
         }
     }
 
+    // MARK: - DEBUG-only testing helpers
+
+    #if DEBUG
+    func connectSimulatedCamera() {
+        AppLogger.log("connectSimulatedCamera() — using Rocc's DummyCamera for offline testing")
+        let dummy = DummyCamera()
+        dummy.connect { [weak self] (error, isInTransferMode) in
+            DispatchQueue.main.async {
+                self?.connectedCamera = dummy
+                self?.cameraInfo = "\(dummy.name ?? "Simulated Camera") · \(dummy.lensModelName ?? "Lens unknown")"
+                self?.statusMessage = "Connected to simulated camera (DEBUG)"
+                self?.fetchCapabilities()
+            }
+        }
+    }
+
+    func testCapabilityFormattingLogic() {
+        let fakeISOValues: [ISO.Value] = [.native(100), .native(200), .native(400), .auto, .extended(50)]
+        let extractedISO = fakeISOValues.compactMap { value -> Int? in
+            if case .native(let intVal) = value { return intVal }
+            return nil
+        }.sorted()
+        AppLogger.log("testCapabilityFormattingLogic — ISO extraction result: \(extractedISO) (expected: [100, 200, 400], .auto and .extended should be filtered out)")
+
+        let fakeApertureValues: [Aperture.Value] = [
+            Aperture.Value(value: 2.8), Aperture.Value(value: 4.0), Aperture.Value(value: 22.0)
+        ]
+        let extractedAperture = fakeApertureValues.map { $0.value }.sorted()
+        let formattedAperture = extractedAperture.map { String(format: "f/%.1f", $0) }
+        AppLogger.log("testCapabilityFormattingLogic — Aperture formatted result: \(formattedAperture) (expected: [\"f/2.8\", \"f/4.0\", \"f/22.0\"])")
+    }
+    #endif
+
     func cameraDiscoverer(_ discoverer: CameraDiscoverer, didError error: Error) {
         guard connectedCamera == nil else {
             AppLogger.log("Discovery ERROR (ignored — already connected): \(error.localizedDescription)")

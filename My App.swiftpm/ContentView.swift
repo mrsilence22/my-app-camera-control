@@ -20,6 +20,18 @@ struct ContentView: View {
             ScrollView {
                 VStack(spacing: 20) {
                     header
+                    #if DEBUG
+                    HStack {
+                        Button("🧪 Simulate Camera") {
+                            controller.connectSimulatedCamera()
+                        }
+                        .font(.caption)
+                        Button("🧪 Test Formatting Logic") {
+                            controller.testCapabilityFormattingLogic()
+                        }
+                        .font(.caption)
+                    }
+                    #endif
                     statusBar
                     inputCard
                     
