@@ -107,6 +107,42 @@ class CameraController: NSObject, ObservableObject, CameraDiscovererDelegate {
         let formattedAperture = extractedAperture.map { String(format: "f/%.1f", $0) }
         AppLogger.log("testCapabilityFormattingLogic — Aperture formatted result: \(formattedAperture) (expected: [\"f/2.8\", \"f/4.0\", \"f/22.0\"])")
     }
+
+    func testFullPipelineWithSimulatedCamera() async {
+        AppLogger.log("=== testFullPipelineWithSimulatedCamera START ===")
+        connectSimulatedCamera()
+
+        // fetchCapabilities is async, wait a bit for it to complete
+        try? await Task.sleep(nanoseconds: 1_000_000_000)
+
+        guard let caps = cameraCapabilities else {
+            AppLogger.log("TEST FAILED — cameraCapabilities is nil, fetchCapabilities() did not complete")
+            return
+        }
+
+        AppLogger.log("Simulated camera capabilities — ISO: \(caps.isoValues.count) values, Aperture: \(caps.apertureValues.count) values, Shutter: \(caps.shutterSpeedValues.count) values")
+        AppLogger.log("Expected: ISO=0, Aperture=0 (DummyCamera's own cast bug), Shutter=~30 (real values)")
+
+        do {
+            let result = try await ClaudeSettingsService.getSettings(
+                sceneDescription: "A test scene: bright outdoor daylight, fast-moving subject",
+                cameraName: connectedCamera?.name,
+                capabilities: caps
+            )
+            AppLogger.log("Claude returned — mode: \(result.recommendedMode), iso: \(String(describing: result.iso)), aperture: \(String(describing: result.aperture)), shutter: \(String(describing: result.shutterSpeed))")
+
+            // Verify: if we sent a shutter list, Claude's returned shutter value should be in it
+            if !caps.shutterSpeedValues.isEmpty, let returnedShutter = result.shutterSpeed {
+                let matchFound = caps.shutterSpeedValues.contains(returnedShutter)
+                AppLogger.log(matchFound
+                    ? "✅ VERIFIED — Claude's shutter speed (\(returnedShutter)) is present in our supported list"
+                    : "⚠️ MISMATCH — Claude returned '\(returnedShutter)' which is not in our list: \(caps.shutterSpeedValues)")
+            }
+        } catch {
+            AppLogger.log("TEST FAILED — API call error: \(error.localizedDescription)")
+        }
+        AppLogger.log("=== testFullPipelineWithSimulatedCamera END ===")
+    }
     #endif
 
     func cameraDiscoverer(_ discoverer: CameraDiscoverer, didError error: Error) {

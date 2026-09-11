@@ -71,6 +71,7 @@ class ClaudeSettingsService {
                 cameraConstraints += "If your ideal value isn't in a supported list, pick the closest available value instead.\n"
             }
         }
+        AppLogger.log("=== CAMERA CONSTRAINTS SENT TO LLM ===\n\(cameraConstraints)\n=== END CONSTRAINTS ===")
 
         let jsonSchema = """
 
@@ -90,7 +91,8 @@ class ClaudeSettingsService {
         """
 
         let systemPrompt = basePrompt + "\n" + cameraConstraints + jsonSchema
-        
+        AppLogger.log("=== FULL SYSTEM PROMPT (first 2000 chars) ===\n\(String(systemPrompt.prefix(2000)))\n=== END PROMPT ===")
+
         let requestBody: [String: Any] = [
             "model": "claude-sonnet-5",
             "max_tokens": 500,

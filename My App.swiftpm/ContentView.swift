@@ -30,6 +30,12 @@ struct ContentView: View {
                             controller.testCapabilityFormattingLogic()
                         }
                         .font(.caption)
+                        Button("🧪 Test Full Pipeline (Sim Camera → Claude)") {
+                            Task {
+                                await controller.testFullPipelineWithSimulatedCamera()
+                            }
+                        }
+                        .font(.caption)
                     }
                     #endif
                     statusBar
