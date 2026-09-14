@@ -22,24 +22,6 @@ struct ContentView: View {
                     header
                     #if DEBUG
                     HStack {
-                        Button("🧪 Simulate Camera") {
-                            controller.connectSimulatedCamera()
-                        }
-                        .font(.caption)
-                        Button("🧪 Test Formatting Logic") {
-                            controller.testCapabilityFormattingLogic()
-                        }
-                        .font(.caption)
-                        Button("🧪 Test Full Pipeline (Sim Camera → Claude)") {
-                            Task {
-                                await controller.testFullPipelineWithSimulatedCamera()
-                            }
-                        }
-                        .font(.caption)
-                        Button("🧪 Test Aperture Reliability (2 fake lenses)") {
-                            Task { await controller.testAperturePromptReliability() }
-                        }
-                        .font(.caption)
                         Button("🧪 Dump ALL Camera Capabilities") {
                             controller.dumpAllCameraCapabilities()
                         }
