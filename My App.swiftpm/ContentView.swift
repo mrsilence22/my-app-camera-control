@@ -36,6 +36,10 @@ struct ContentView: View {
                             }
                         }
                         .font(.caption)
+                        Button("🧪 Test Aperture Reliability (2 fake lenses)") {
+                            Task { await controller.testAperturePromptReliability() }
+                        }
+                        .font(.caption)
                     }
                     #endif
                     statusBar

@@ -32,6 +32,9 @@ class ClaudeSettingsService {
         - Control depth of field (portrait, bokeh, landscape) → aperture_priority
         - Full manual control needed → manual
         - Only include keys valid for the chosen mode. Omit others (use null).
+        - When the scene explicitly requests shallow depth of field, maximum background blur, or bokeh, \
+        and aperture is settable in the chosen mode, choose the WIDEST available aperture value from the \
+        supported list (the smallest f-number) — do not default to a moderate value.
 
         focus_mode and drive_mode are independent of exposure mode — always include both:
         - focus_mode options: "af" (Automatic AF — subject may start still or move), \

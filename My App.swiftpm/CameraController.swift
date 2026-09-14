@@ -143,6 +143,43 @@ class CameraController: NSObject, ObservableObject, CameraDiscovererDelegate {
         }
         AppLogger.log("=== testFullPipelineWithSimulatedCamera END ===")
     }
+
+    func testAperturePromptReliability() async {
+        AppLogger.log("=== testAperturePromptReliability START ===")
+        let sceneText = "Close-up portrait of a person, background completely blurred with soft creamy bokeh"
+
+        let primeLensCaps = CameraCapabilities(
+            isoValues: [],
+            apertureValues: [1.8, 2.0, 2.2, 2.5, 2.8, 3.2, 3.5, 4.0, 4.5, 5.0, 5.6, 6.3, 7.1, 8.0, 9.0, 10.0, 11.0, 13.0, 14.0, 16.0, 18.0, 20.0, 22.0],
+            shutterSpeedValues: []
+        )
+        let zoomLensCaps = CameraCapabilities(
+            isoValues: [],
+            apertureValues: [3.5, 4.0, 4.5, 5.0, 5.6, 6.3, 7.1, 8.0, 9.0, 10.0, 11.0, 13.0, 14.0, 16.0, 18.0, 20.0, 22.0],
+            shutterSpeedValues: []
+        )
+
+        do {
+            let primeResult = try await ClaudeSettingsService.getSettings(sceneDescription: sceneText, cameraName: "Sony a7C (test - fast prime lens)", capabilities: primeLensCaps)
+            let zoomResult = try await ClaudeSettingsService.getSettings(sceneDescription: sceneText, cameraName: "Sony a7C (test - slow zoom lens)", capabilities: zoomLensCaps)
+
+            AppLogger.log("Prime lens — Claude picked: \(String(describing: primeResult.aperture)), list widest available: \(primeLensCaps.apertureValues.min() ?? -1)")
+            AppLogger.log("Zoom lens — Claude picked: \(String(describing: zoomResult.aperture)), list widest available: \(zoomLensCaps.apertureValues.min() ?? -1)")
+
+            if let primeAp = primeResult.aperture, let zoomAp = zoomResult.aperture {
+                AppLogger.log(primeAp < zoomAp
+                    ? "✅ Prime lens aperture (\(primeAp)) wider than zoom lens (\(zoomAp)) — demo should show visible difference"
+                    : "⚠️ No meaningful difference — prime: \(primeAp), zoom: \(zoomAp). Prompt rule needs strengthening.")
+
+                let primeIsWidest = abs(primeAp - (primeLensCaps.apertureValues.min() ?? -1)) < 0.01
+                let zoomIsWidest = abs(zoomAp - (zoomLensCaps.apertureValues.min() ?? -1)) < 0.01
+                AppLogger.log("Prime picked exact widest available: \(primeIsWidest), Zoom picked exact widest available: \(zoomIsWidest)")
+            }
+        } catch {
+            AppLogger.log("testAperturePromptReliability FAILED — \(error.localizedDescription)")
+        }
+        AppLogger.log("=== testAperturePromptReliability END ===")
+    }
     #endif
 
     func cameraDiscoverer(_ discoverer: CameraDiscoverer, didError error: Error) {
