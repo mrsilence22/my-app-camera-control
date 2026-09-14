@@ -40,6 +40,10 @@ struct ContentView: View {
                             Task { await controller.testAperturePromptReliability() }
                         }
                         .font(.caption)
+                        Button("🧪 Dump ALL Camera Capabilities") {
+                            controller.dumpAllCameraCapabilities()
+                        }
+                        .font(.caption)
                     }
                     #endif
                     statusBar

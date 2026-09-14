@@ -180,6 +180,55 @@ class CameraController: NSObject, ObservableObject, CameraDiscovererDelegate {
         }
         AppLogger.log("=== testAperturePromptReliability END ===")
     }
+
+    func dumpAllCameraCapabilities() {
+        guard let camera = connectedCamera else {
+            AppLogger.log("dumpAllCameraCapabilities — no camera connected, connect to the real a7C first (not simulated)")
+            return
+        }
+        AppLogger.log("=== dumpAllCameraCapabilities START — camera: \(cameraInfo) ===")
+        let group = DispatchGroup()
+
+        func check<T: CameraFunction>(_ label: String, _ function: T) {
+            group.enter()
+            camera.isFunctionAvailable(function) { (available, error, values) in
+                let valuesDesc: String
+                if let values = values {
+                    valuesDesc = "\(values.count) values: \(values.map { String(describing: $0) })"
+                } else {
+                    valuesDesc = "nil"
+                }
+                AppLogger.log("[\(label)] available: \(String(describing: available)), error: \(error?.localizedDescription ?? "nil"), values: \(valuesDesc)")
+                group.leave()
+            }
+        }
+
+        check("ISO", ISO.set)
+        check("Aperture", Aperture.set)
+        check("Shutter Speed", Shutter.Speed.set)
+        check("White Balance", WhiteBalance.set)
+        check("Focus Mode", Focus.Mode.set)
+        check("Shoot Mode (Drive)", ShootMode.set)
+        check("Exposure Mode", Exposure.Mode.set)
+        check("Exposure Compensation", Exposure.Compensation.set)
+        check("Exposure Settings Lock", Exposure.SettingsLock.set)
+        check("Steady Mode (Stabilization)", SteadyMode.set)
+        check("Flash Mode", Flash.Mode.set)
+        check("Still Quality (RAW/JPEG)", StillCapture.Quality.set)
+        check("Still Format", StillCapture.Format.set)
+        check("Still Size", StillCapture.Size.set)
+        check("Continuous Shooting Mode", ContinuousCapture.Mode.set)
+        check("Continuous Shooting Speed", ContinuousCapture.Speed.set)
+        check("Self Timer Duration", SelfTimerDuration.set)
+        check("Color Setting", ColorSetting.set)
+        check("Beep Mode", BeepMode.set)
+        check("Auto Power Off", AutoPowerOff.set)
+        check("Wind Noise Reduction", WindNoiseReduction.set)
+
+        group.notify(queue: .main) {
+            AppLogger.log("=== dumpAllCameraCapabilities DONE (21 settings checked) ===")
+        }
+    }
     #endif
 
     func cameraDiscoverer(_ discoverer: CameraDiscoverer, didError error: Error) {
