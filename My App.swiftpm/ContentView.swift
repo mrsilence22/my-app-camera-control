@@ -20,14 +20,6 @@ struct ContentView: View {
             ScrollView {
                 VStack(spacing: 20) {
                     header
-                    #if DEBUG
-                    HStack {
-                        Button("🧪 Dump ALL Camera Capabilities") {
-                            controller.dumpAllCameraCapabilities()
-                        }
-                        .font(.caption)
-                    }
-                    #endif
                     statusBar
                     inputCard
                     
@@ -67,7 +59,7 @@ struct ContentView: View {
             Image(systemName: "camera.aperture")
                 .font(.system(size: 28, weight: .bold))
                 .foregroundStyle(LinearGradient(colors: [.orange, .pink], startPoint: .top, endPoint: .bottom))
-            Text("Lens AI")
+            Text("Shot Sense AI")
                 .font(.system(size: 28, weight: .heavy, design: .rounded))
                 .foregroundColor(.white)
             Spacer()
