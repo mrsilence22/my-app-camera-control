@@ -124,7 +124,7 @@ class CameraController: NSObject, ObservableObject, CameraDiscovererDelegate {
         AppLogger.log("Expected: ISO=0, Aperture=0 (DummyCamera's own cast bug), Shutter=~30 (real values)")
 
         do {
-            let result = try await ClaudeSettingsService.getSettings(
+            let result = try await ShotSenseService.getSettings(
                 sceneDescription: "A test scene: bright outdoor daylight, fast-moving subject",
                 cameraName: connectedCamera?.name,
                 capabilities: caps
@@ -160,8 +160,8 @@ class CameraController: NSObject, ObservableObject, CameraDiscovererDelegate {
         )
 
         do {
-            let primeResult = try await ClaudeSettingsService.getSettings(sceneDescription: sceneText, cameraName: "Sony a7C (test - fast prime lens)", capabilities: primeLensCaps)
-            let zoomResult = try await ClaudeSettingsService.getSettings(sceneDescription: sceneText, cameraName: "Sony a7C (test - slow zoom lens)", capabilities: zoomLensCaps)
+            let primeResult = try await ShotSenseService.getSettings(sceneDescription: sceneText, cameraName: "Sony a7C (test - fast prime lens)", capabilities: primeLensCaps)
+            let zoomResult = try await ShotSenseService.getSettings(sceneDescription: sceneText, cameraName: "Sony a7C (test - slow zoom lens)", capabilities: zoomLensCaps)
 
             AppLogger.log("Prime lens — Claude picked: \(String(describing: primeResult.aperture)), list widest available: \(primeLensCaps.apertureValues.min() ?? -1)")
             AppLogger.log("Zoom lens — Claude picked: \(String(describing: zoomResult.aperture)), list widest available: \(zoomLensCaps.apertureValues.min() ?? -1)")

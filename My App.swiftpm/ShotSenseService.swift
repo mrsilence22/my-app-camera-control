@@ -1,7 +1,7 @@
 
 import Foundation
 
-enum ClaudeServiceError: Error, CustomStringConvertible {
+enum ShotSenseServiceError: Error, CustomStringConvertible {
     case invalidResponse(String)
     case apiError(String)
     
@@ -13,7 +13,7 @@ enum ClaudeServiceError: Error, CustomStringConvertible {
     }
 }
 
-class ClaudeSettingsService {
+class ShotSenseService {
     static let apiKey = Secrets.claudeAPIKey
     
     static func getSettings(sceneDescription: String, cameraName: String?, capabilities: CameraCapabilities?) async throws -> CameraSettings {
@@ -119,17 +119,17 @@ class ClaudeSettingsService {
         let fullRawResponse = String(data: data, encoding: .utf8) ?? "<non-utf8 data>"
         
         guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-            throw ClaudeServiceError.invalidResponse(fullRawResponse)
+            throw ShotSenseServiceError.invalidResponse(fullRawResponse)
         }
         if let error = json["error"] as? [String: Any], let message = error["message"] as? String {
-            throw ClaudeServiceError.apiError(message)
+            throw ShotSenseServiceError.apiError(message)
         }
         
         // Find the "text" type block specifically — content may also include a "thinking" block first.
         guard let content = json["content"] as? [[String: Any]],
               let textBlock = content.first(where: { ($0["type"] as? String) == "text" }),
               let rawText = textBlock["text"] as? String else {
-            throw ClaudeServiceError.invalidResponse(fullRawResponse)
+            throw ShotSenseServiceError.invalidResponse(fullRawResponse)
         }
         
         var cleanedText = rawText.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -140,13 +140,13 @@ class ClaudeSettingsService {
         }
         
         guard let jsonData = cleanedText.data(using: .utf8) else {
-            throw ClaudeServiceError.invalidResponse(rawText)
+            throw ShotSenseServiceError.invalidResponse(rawText)
         }
         
         do {
             return try JSONDecoder().decode(CameraSettings.self, from: jsonData)
         } catch {
-            throw ClaudeServiceError.invalidResponse("Decode failed: \(error). Raw text: \(rawText)")
+            throw ShotSenseServiceError.invalidResponse("Decode failed: \(error). Raw text: \(rawText)")
         }
     }
 }
