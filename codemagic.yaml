@@ -20,7 +20,8 @@ workflows:
           set -e
           cat > "$APP_PLAYGROUND_DIR/Secrets.swift" <<EOF
           enum Secrets {
-              static let claudeAPIKey = "$CLAUDE_API_KEY"
+              static let localModelURL = "$LOCAL_MODEL_URL"
+              static let localModelName = "shotsense"
           }
           EOF
 

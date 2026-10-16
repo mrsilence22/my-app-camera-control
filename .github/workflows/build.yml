@@ -25,12 +25,13 @@ jobs:
 
       - name: Generate Secrets.swift from repository secret
         env:
-          CLAUDE_API_KEY: ${{ secrets.CLAUDE_API_KEY }}
+          LOCAL_MODEL_URL: ${{ secrets.LOCAL_MODEL_URL }}
         run: |
           set -e
           cat > "$APP_PLAYGROUND_DIR/Secrets.swift" <<EOF
           enum Secrets {
-              static let claudeAPIKey = "$CLAUDE_API_KEY"
+              static let localModelURL = "$LOCAL_MODEL_URL"
+              static let localModelName = "shotsense"
           }
           EOF
 
