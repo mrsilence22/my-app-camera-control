@@ -1,7 +1,7 @@
 
 import Foundation
 
-enum ClaudeServiceError: Error, CustomStringConvertible {
+enum ShotSenseServiceError: Error, CustomStringConvertible {
     case invalidResponse(String)
     case apiError(String)
     
@@ -13,9 +13,48 @@ enum ClaudeServiceError: Error, CustomStringConvertible {
     }
 }
 
-class ClaudeSettingsService {
-    static let apiKey = Secrets.claudeAPIKey
-    
+class ShotSenseService {
+    private static let requestTimeout: TimeInterval = 90
+
+    private static func requestModel(systemPrompt: String, sceneDescription: String) async throws -> String {
+        var base = Secrets.localModelURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        while base.hasSuffix("/") { base.removeLast() }
+        guard let url = URL(string: base + "/v1/chat/completions"), url.host != nil else {
+            throw ShotSenseServiceError.apiError("Secrets.localModelURL galat hai (https://....trycloudflare.com hona chahiye)")
+        }
+        let body: [String: Any] = [
+            "model": Secrets.localModelName,
+            "temperature": 0,
+            "max_tokens": 450,
+            "stream": false,
+            "messages": [
+                ["role": "system", "content": systemPrompt],
+                ["role": "user", "content": sceneDescription]
+            ]
+        ]
+        let jsonBody = try JSONSerialization.data(withJSONObject: body)
+        let data = try await CellularNetworkClient.post(
+            url: url,
+            headers: ["content-type": "application/json"],
+            jsonBody: jsonBody,
+            timeout: requestTimeout
+        )
+        let raw = String(data: data, encoding: .utf8) ?? "<non-utf8 data>"
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            throw ShotSenseServiceError.invalidResponse(raw)   // Cloudflare 502/1033 HTML lands here
+        }
+        if let message = json["error"] as? String { throw ShotSenseServiceError.apiError(message) }
+        if let error = json["error"] as? [String: Any], let message = error["message"] as? String {
+            throw ShotSenseServiceError.apiError(message)
+        }
+        guard let choices = json["choices"] as? [[String: Any]],
+              let message = choices.first?["message"] as? [String: Any],
+              let content = message["content"] as? String else {
+            throw ShotSenseServiceError.invalidResponse(raw)
+        }
+        return content
+    }
+
     static func getSettings(sceneDescription: String, cameraName: String?, capabilities: CameraCapabilities?) async throws -> CameraSettings {
         let basePrompt = """
         You are a camera settings assistant for a Sony Alpha camera. Given a photographer's \
@@ -96,42 +135,11 @@ class ClaudeSettingsService {
         let systemPrompt = basePrompt + "\n" + cameraConstraints + jsonSchema
         AppLogger.log("=== FULL SYSTEM PROMPT (first 2000 chars) ===\n\(String(systemPrompt.prefix(2000)))\n=== END PROMPT ===")
 
-        let requestBody: [String: Any] = [
-            "model": "claude-sonnet-5",
-            "max_tokens": 500,
-            "system": systemPrompt,
-            "messages": [["role": "user", "content": sceneDescription]]
-        ]
+        // Sent over cellular (see CellularNetworkClient): the phone stays connected to the
+        // camera's Wi-Fi, which has no internet, while this request must reach the server.
+        let rawText = try await requestModel(systemPrompt: systemPrompt, sceneDescription: sceneDescription)
+        AppLogger.log("=== MODEL RAW OUTPUT ===\n\(rawText)\n=== END MODEL OUTPUT ===")
 
-        let jsonBody = try JSONSerialization.data(withJSONObject: requestBody)
-
-        // Forced over cellular: the phone stays connected to the camera's Wi-Fi (which
-        // has no internet) while this request needs to actually reach the internet.
-        let data = try await CellularNetworkClient.post(
-            url: URL(string: "https://api.anthropic.com/v1/messages")!,
-            headers: [
-                "x-api-key": apiKey,
-                "anthropic-version": "2023-06-01",
-                "content-type": "application/json"
-            ],
-            jsonBody: jsonBody
-        )
-        let fullRawResponse = String(data: data, encoding: .utf8) ?? "<non-utf8 data>"
-        
-        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-            throw ClaudeServiceError.invalidResponse(fullRawResponse)
-        }
-        if let error = json["error"] as? [String: Any], let message = error["message"] as? String {
-            throw ClaudeServiceError.apiError(message)
-        }
-        
-        // Find the "text" type block specifically — content may also include a "thinking" block first.
-        guard let content = json["content"] as? [[String: Any]],
-              let textBlock = content.first(where: { ($0["type"] as? String) == "text" }),
-              let rawText = textBlock["text"] as? String else {
-            throw ClaudeServiceError.invalidResponse(fullRawResponse)
-        }
-        
         var cleanedText = rawText.trimmingCharacters(in: .whitespacesAndNewlines)
         if cleanedText.hasPrefix("```") {
             cleanedText = cleanedText.replacingOccurrences(of: "```json", with: "")
@@ -140,13 +148,13 @@ class ClaudeSettingsService {
         }
         
         guard let jsonData = cleanedText.data(using: .utf8) else {
-            throw ClaudeServiceError.invalidResponse(rawText)
+            throw ShotSenseServiceError.invalidResponse(rawText)
         }
         
         do {
             return try JSONDecoder().decode(CameraSettings.self, from: jsonData)
         } catch {
-            throw ClaudeServiceError.invalidResponse("Decode failed: \(error). Raw text: \(rawText)")
+            throw ShotSenseServiceError.invalidResponse("Decode failed: \(error). Raw text: \(rawText)")
         }
     }
 }

@@ -124,19 +124,19 @@ class CameraController: NSObject, ObservableObject, CameraDiscovererDelegate {
         AppLogger.log("Expected: ISO=0, Aperture=0 (DummyCamera's own cast bug), Shutter=~30 (real values)")
 
         do {
-            let result = try await ClaudeSettingsService.getSettings(
+            let result = try await ShotSenseService.getSettings(
                 sceneDescription: "A test scene: bright outdoor daylight, fast-moving subject",
                 cameraName: connectedCamera?.name,
                 capabilities: caps
             )
-            AppLogger.log("Claude returned — mode: \(result.recommendedMode), iso: \(String(describing: result.iso)), aperture: \(String(describing: result.aperture)), shutter: \(String(describing: result.shutterSpeed))")
+            AppLogger.log("Model returned — mode: \(result.recommendedMode), iso: \(String(describing: result.iso)), aperture: \(String(describing: result.aperture)), shutter: \(String(describing: result.shutterSpeed))")
 
-            // Verify: if we sent a shutter list, Claude's returned shutter value should be in it
+            // Verify: if we sent a shutter list, the model's returned shutter value should be in it
             if !caps.shutterSpeedValues.isEmpty, let returnedShutter = result.shutterSpeed {
                 let matchFound = caps.shutterSpeedValues.contains(returnedShutter)
                 AppLogger.log(matchFound
-                    ? "✅ VERIFIED — Claude's shutter speed (\(returnedShutter)) is present in our supported list"
-                    : "⚠️ MISMATCH — Claude returned '\(returnedShutter)' which is not in our list: \(caps.shutterSpeedValues)")
+                    ? "✅ VERIFIED — Model's shutter speed (\(returnedShutter)) is present in our supported list"
+                    : "⚠️ MISMATCH — Model returned '\(returnedShutter)' which is not in our list: \(caps.shutterSpeedValues)")
             }
         } catch {
             AppLogger.log("TEST FAILED — API call error: \(error.localizedDescription)")
@@ -160,11 +160,11 @@ class CameraController: NSObject, ObservableObject, CameraDiscovererDelegate {
         )
 
         do {
-            let primeResult = try await ClaudeSettingsService.getSettings(sceneDescription: sceneText, cameraName: "Sony a7C (test - fast prime lens)", capabilities: primeLensCaps)
-            let zoomResult = try await ClaudeSettingsService.getSettings(sceneDescription: sceneText, cameraName: "Sony a7C (test - slow zoom lens)", capabilities: zoomLensCaps)
+            let primeResult = try await ShotSenseService.getSettings(sceneDescription: sceneText, cameraName: "Sony a7C (test - fast prime lens)", capabilities: primeLensCaps)
+            let zoomResult = try await ShotSenseService.getSettings(sceneDescription: sceneText, cameraName: "Sony a7C (test - slow zoom lens)", capabilities: zoomLensCaps)
 
-            AppLogger.log("Prime lens — Claude picked: \(String(describing: primeResult.aperture)), list widest available: \(primeLensCaps.apertureValues.min() ?? -1)")
-            AppLogger.log("Zoom lens — Claude picked: \(String(describing: zoomResult.aperture)), list widest available: \(zoomLensCaps.apertureValues.min() ?? -1)")
+            AppLogger.log("Prime lens — Model picked: \(String(describing: primeResult.aperture)), list widest available: \(primeLensCaps.apertureValues.min() ?? -1)")
+            AppLogger.log("Zoom lens — Model picked: \(String(describing: zoomResult.aperture)), list widest available: \(zoomLensCaps.apertureValues.min() ?? -1)")
 
             if let primeAp = primeResult.aperture, let zoomAp = zoomResult.aperture {
                 AppLogger.log(primeAp < zoomAp

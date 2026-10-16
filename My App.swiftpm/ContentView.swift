@@ -127,7 +127,7 @@ struct ContentView: View {
                 controller.settingResults = []
                 Task {
                     do {
-                        result = try await ClaudeSettingsService.getSettings(
+                        result = try await ShotSenseService.getSettings(
                             sceneDescription: sceneText,
                             cameraName: controller.connectedCamera?.name,
                             capabilities: controller.cameraCapabilities
