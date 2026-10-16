@@ -9,7 +9,7 @@ enum CellularNetworkError: Error, CustomStringConvertible {
     var description: String {
         switch self {
         case .timeout, .connectionFailed:
-            return "Cellular data चाहिए Claude API ke liye, WiFi-only mode mein settings nahi mil sakti"
+            return "Cellular data chahiye, ya server ne time par jawab nahi diya"
         case .invalidResponse(let raw):
             return "Invalid response from server: \(raw.prefix(200))"
         }
@@ -22,7 +22,6 @@ enum CellularNetworkError: Error, CustomStringConvertible {
 /// connection and the HTTP/1.1 request by hand via the Network framework.
 enum CellularNetworkClient {
     private static let queue = DispatchQueue(label: "com.myapp.cellularnetworkclient")
-    private static let timeoutSeconds: TimeInterval = 15
 
     /// Guards against resuming a checked continuation more than once, since the
     /// timeout, a connection failure, and a receive completion can all race to
@@ -37,7 +36,7 @@ enum CellularNetworkClient {
         }
     }
 
-    static func post(url: URL, headers: [String: String], jsonBody: Data) async throws -> Data {
+    static func post(url: URL, headers: [String: String], jsonBody: Data, timeout: TimeInterval = 15) async throws -> Data {
         guard let host = url.host else {
             throw CellularNetworkError.connectionFailed("URL has no host: \(url.absoluteString)")
         }
@@ -56,11 +55,11 @@ enum CellularNetworkClient {
 
             let timeoutWorkItem = DispatchWorkItem {
                 guard once.finish() else { return }
-                AppLogger.log("CellularNetworkClient: TIMEOUT after \(Int(timeoutSeconds))s — cancelling connection")
+                AppLogger.log("CellularNetworkClient: TIMEOUT after \(Int(timeout))s — cancelling connection")
                 connection.cancel()
                 continuation.resume(throwing: CellularNetworkError.timeout)
             }
-            queue.asyncAfter(deadline: .now() + timeoutSeconds, execute: timeoutWorkItem)
+            queue.asyncAfter(deadline: .now() + timeout, execute: timeoutWorkItem)
 
             connection.stateUpdateHandler = { newState in
                 AppLogger.log("CellularNetworkClient: state -> \(newState)")
@@ -102,7 +101,7 @@ enum CellularNetworkClient {
                 case .waiting(let error):
                     // No cellular path available yet (cellular off / no signal / airplane
                     // mode). Don't fail here — NWConnection will keep retrying on its own
-                    // as paths change, so just let the 15s timeout be the backstop.
+                    // as paths change, so just let the request timeout be the backstop.
                     AppLogger.log("CellularNetworkClient: waiting for a cellular path — \(error)")
 
                 default:
